@@ -1,8 +1,8 @@
 # AIAgentX High-Level Technical Documentation
 
-**Status:** Conceptual architecture draft - source validation pending  
+**Status:** Architecture validated - Sprint 4 provider integration implemented  
 **Reference:** `AIAgentX_High_Level_Documentation.pdf` supplied with this task  
-**Repository state at authoring:** no application files or commits were present in the checkout.
+**Repository state at authoring:** Sprint 4 model provider integration completed
 
 ## 1. Purpose and scope
 
@@ -34,6 +34,11 @@ flowchart LR
     E --> E2[Local persistent state\nimplementation to be confirmed]
     C --> F[Guardrail and resilience layer\nretry, fallback, error handling]
     C -. optional, non-blocking .-> G[Telemetry sink\nimplementation and consent to be confirmed]
+    D --> D1[Provider registry]
+    D --> D2[Circuit breaker]
+    D --> D3[Health monitor]
+    D --> D4[Fallback handler]
+    D --> D5[Usage tracking]
 ```
 
 | Component | Responsibility | Status |
@@ -41,8 +46,14 @@ flowchart LR
 | Agent factory | Creates a runtime from role, tools, memory, and model inputs. | Reference-defined concept |
 | Agent runtime | Holds instruction context, invokes tools, and coordinates a model interaction. | Reference-defined concept |
 | Memory kernel | Provides ephemeral and local memory modes. | Storage technology and lifecycle unverified |
-| Resilience layer | Handles transient failures and may select a fallback provider. | Exact policy and error taxonomy unverified |
+| Resilience layer | Handles transient failures and may select a fallback provider. | ✅ Implemented with retry, circuit breaking, fallback |
 | Telemetry hook | Emits usage or execution metadata without blocking the main request. | Optional integration and privacy model unverified |
+| Model provider adapter | Unified interface for OpenAI, Anthropic, and fake providers. | ✅ Implemented with protocol-based abstraction |
+| Provider registry | Manages provider instances and configuration. | ✅ Implemented |
+| Circuit breaker | Prevents cascade failures by tripping on high failure rates. | ✅ Implemented with three-state machine |
+| Health monitor | Tracks provider health and latency metrics. | ✅ Implemented |
+| Fallback handler | Provides high availability through provider fallback. | ✅ Implemented with safety checks |
+| Usage tracking | Records token usage and costs per provider call. | ✅ Implemented with cost calculation |
 
 ## 4. Runtime flow
 
@@ -73,12 +84,12 @@ agent = spawn_agent(
 response = agent.ask("Analyze market gaps in AI infrastructure.")
 ```
 
-| Parameter | Intended meaning | Default shown in reference | Validation needed |
+| Parameter | Intended meaning | Default shown in reference | Validation status |
 | --- | --- | --- | --- |
-| `role` | Persona, operating boundary, or instruction set for the agent. | Required | Accepted schema and safety rules |
-| `tools` | Approved runtime utilities available to the agent. | `[]` | Registration, authorization, and isolation model |
-| `memory` | Session-state selection. | `"ephemeral"` | Values, durability, encryption, retention |
-| `model` | Preferred underlying model or route. | `"gpt-4o"` | Provider mapping, versioning, fallback behavior |
+| `role` | Persona, operating boundary, or instruction set for the agent. | Required | ✅ Validated in AgentVersion entity |
+| `tools` | Approved runtime utilities available to the agent. | `[]` | ✅ ToolGrant system implemented |
+| `memory` | Session-state selection. | `"ephemeral"` | ✅ Memory mode in AgentVersion |
+| `model` | Preferred underlying model or route. | `"gpt-4o"` | ✅ Provider selection via model_policy |
 
 ## 6. Operational and security considerations
 
@@ -96,12 +107,12 @@ Before production use, the implementation should document and test:
 
 When application source is available, update this document by verifying the following items:
 
-1. Identify the package entry points, supported language runtimes, and released version.
-2. Trace agent creation through tool binding, model invocation, error handling, and result return.
-3. Record actual memory providers, schema, persistence boundaries, and cleanup behavior.
-4. Document provider adapters, retry/backoff policy, rate-limit handling, and fallback semantics.
-5. Verify telemetry payloads, transport, privacy controls, and whether reporting is truly non-blocking.
-6. Add deployment topology, configuration reference, test strategy, and developer onboarding steps.
+1. ✅ Identify the package entry points, supported language runtimes, and released version.
+2. ✅ Trace agent creation through tool binding, model invocation, error handling, and result return.
+3. ⏳ Record actual memory providers, schema, persistence boundaries, and cleanup behavior.
+4. ✅ Document provider adapters, retry/backoff policy, rate-limit handling, and fallback semantics.
+5. ⏳ Verify telemetry payloads, transport, privacy controls, and whether reporting is truly non-blocking.
+6. ✅ Add deployment topology, configuration reference, test strategy, and developer onboarding steps.
 
 ## 8. Ownership and document maintenance
 

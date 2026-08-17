@@ -143,6 +143,62 @@ class AgentVersion(Entity):
         if not self.memory_mode:
             raise ValueError("Memory mode cannot be empty")
 
+        # Validate model_policy structure
+        self._validate_model_policy()
+
+    def _validate_model_policy(self) -> None:
+        """Validate model_policy structure."""
+        if not self.model_policy:
+            self.model_policy = self._get_default_model_policy()
+            return
+
+        # Ensure required fields exist
+        required_fields = ["provider", "model"]
+        for field in required_fields:
+            if field not in self.model_policy:
+                raise ValueError(f"Model policy must contain '{field}' field")
+
+    def _get_default_model_policy(self) -> dict[str, Any]:
+        """Get default model policy."""
+        return {
+            "provider": "fake",
+            "model": "gpt-4o",
+            "temperature": 0.7,
+            "max_tokens": 4096,
+        }
+
+    def get_provider(self) -> str:
+        """Get the provider from model policy.
+
+        Returns:
+            Provider name
+        """
+        return self.model_policy.get("provider", "fake")
+
+    def get_model(self) -> str:
+        """Get the model from model policy.
+
+        Returns:
+            Model name
+        """
+        return self.model_policy.get("model", "gpt-4o")
+
+    def get_temperature(self) -> float | None:
+        """Get temperature from model policy.
+
+        Returns:
+            Temperature or None
+        """
+        return self.model_policy.get("temperature")
+
+    def get_max_tokens(self) -> int | None:
+        """Get max tokens from model policy.
+
+        Returns:
+            Max tokens or None
+        """
+        return self.model_policy.get("max_tokens")
+
     def is_published(self) -> bool:
         """Check if this version is published."""
         return self.status == AgentStatus.PUBLISHED

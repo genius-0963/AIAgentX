@@ -77,5 +77,12 @@ class RunStepModel(Base, UUIDMixin, TimestampMixin):
     input_data: Mapped[dict[str, object] | None] = mapped_column(JSONB(), nullable=True)
     output_data: Mapped[dict[str, object] | None] = mapped_column(JSONB(), nullable=True)
     error: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    # Usage tracking fields
+    prompt_tokens: Mapped[int] = mapped_column(nullable=True, default=0)
+    completion_tokens: Mapped[int] = mapped_column(nullable=True, default=0)
+    total_tokens: Mapped[int] = mapped_column(nullable=True, default=0)
+    cost_microunits: Mapped[int] = mapped_column(nullable=True, default=0)
+    provider: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    model: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
     run: Mapped["RunModel"] = relationship("RunModel", back_populates="steps")

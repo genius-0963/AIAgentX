@@ -142,6 +142,20 @@ class RunUseCases:
         if not run:
             return None
 
+        # Calculate detailed usage from steps
+        total_tokens = 0
+        provider_usage = {}
+
+        for step in run._steps:
+            if hasattr(step, "total_tokens") and step.total_tokens:
+                total_tokens += step.total_tokens
+            if hasattr(step, "provider") and step.provider:
+                provider = step.provider
+                if provider not in provider_usage:
+                    provider_usage[provider] = {"tokens": 0, "cost": 0}
+                provider_usage[provider]["tokens"] += getattr(step, "total_tokens", 0)
+                provider_usage[provider]["cost"] += getattr(step, "cost_microunits", 0)
+
         return {
             "id": str(run.id),
             "tenant_id": str(run.tenant_id),
@@ -152,7 +166,8 @@ class RunUseCases:
             "usage": {
                 "steps_completed": len(run._steps),
                 "total_cost_usd": run.spent_cost.micro_units / 1_000_000,
-                "tokens_used": 0,  # TODO: Track actual token usage
+                "tokens_used": total_tokens,
+                "by_provider": provider_usage,
             },
             "attempt": run.attempt,
             "max_steps": run.max_steps,

@@ -69,8 +69,95 @@ async def readiness(request: Request) -> JSONResponse:
         },
     }
 
+    # Add provider health checks if provider service is available
+    provider_service = getattr(request.app.state, "provider_service", None)
+    if provider_service is not None:
+        try:
+            service_status = provider_service.get_service_status()
+            provider_health = service_status.get("health_status", {})
+            checks["providers"] = {
+                "status": "ok" if provider_health.get("overall_healthy", False) else "degraded",
+                "details": provider_health,
+            }
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Could not get provider health: %s", exc)
+            checks["providers"] = {"status": "fail", "error": str(exc)}
+
     all_ok = all(c["status"] == "ok" for c in checks.values())
     return JSONResponse(
         status_code=status.HTTP_200_OK if all_ok else status.HTTP_503_SERVICE_UNAVAILABLE,
         content={"status": "ok" if all_ok else "degraded", "checks": checks},
     )
+
+
+@router.get("/providers", summary="Provider health status")
+async def provider_health(request: Request) -> JSONResponse:
+    """Get detailed health status for all providers.
+
+    Returns provider health, circuit breaker status, and fallback configuration.
+    """
+    provider_service = getattr(request.app.state, "provider_service", None)
+
+    if provider_service is None:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "degraded", "error": "Provider service not available"},
+        )
+
+    try:
+        service_status = provider_service.get_service_status()
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"status": "ok", "service": service_status},
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Failed to get provider service status: %s", exc)
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "degraded", "error": str(exc)},
+        )
+
+
+@router.get("/providers/{provider_name}", summary="Individual provider health")
+async def provider_health_detail(request: Request, provider_name: str) -> JSONResponse:
+    """Get detailed health status for a specific provider.
+
+    Args:
+        provider_name: Name of the provider to check
+
+    Returns:
+        Detailed health status for the provider
+    """
+    provider_service = getattr(request.app.state, "provider_service", None)
+
+    if provider_service is None:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "degraded", "error": "Provider service not available"},
+        )
+
+    try:
+        health = provider_service.get_provider_health(provider_name)
+        circuit_status = provider_service.get_circuit_breaker_status(provider_name)
+
+        if health is None:
+            return JSONResponse(
+                status_code=status.HTTP_404_NOT_FOUND,
+                content={"status": "not_found", "provider": provider_name},
+            )
+
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "status": "ok",
+                "provider": provider_name,
+                "health": health,
+                "circuit_breaker": circuit_status,
+            },
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Failed to get provider health: %s", exc)
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "degraded", "error": str(exc)},
+        )

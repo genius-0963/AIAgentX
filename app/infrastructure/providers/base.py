@@ -52,12 +52,20 @@ class BaseProvider(ABC, ModelProvider):
             )
             limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
 
+            base_url = self._get_base_url()
             self._client = httpx.AsyncClient(
                 timeout=timeout,
                 limits=limits,
-                base_url=self._config.base_url,
+                base_url=base_url,
             )
         return self._client
+
+    def _get_base_url(self) -> str:
+        """Get the base URL for the provider.
+
+        Can be overridden by subclasses to provide custom base URLs.
+        """
+        return self._config.base_url or ""
 
     async def close(self) -> None:
         """Close the HTTP client."""
@@ -300,6 +308,10 @@ class BaseProvider(ABC, ModelProvider):
         """
         try:
             client = await self._get_client()
+            base_url = self._get_base_url()
+            if not base_url:
+                return True  # Fake provider or no base URL
+
             # Simple health check - adjust based on provider
             response = await client.get("/", timeout=5.0)
             return response.status_code < 500

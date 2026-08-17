@@ -216,12 +216,22 @@ class Run(AggregateRoot):
         self.spent_cost = new_total
         self.touch()
 
-    def record_token_usage(self, usage: TokenUsage) -> None:
-        """Record token usage (for cost tracking)."""
-        # Simple cost model: $0.00001 per 1k tokens
+    def record_token_usage(self, usage: TokenUsage, provider: str = "", model: str = "") -> None:
+        """Record token usage (for cost tracking).
+
+        Args:
+            usage: Token usage information
+            provider: Provider name (e.g., 'openai')
+            model: Model name (e.g., 'gpt-4o')
+        """
+        # For now, use the simple cost model
+        # In the future, this will use the CostService for accurate pricing
         cost_micro = (usage.total_tokens * 10) // 1000
         if cost_micro > 0:
             self.record_cost(Money(cost_micro))
+
+        # The detailed usage tracking will be handled at the step level
+        # through the UsageRepository
 
     def can_execute(self) -> bool:
         """Check if run can execute."""

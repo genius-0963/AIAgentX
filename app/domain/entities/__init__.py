@@ -5,14 +5,6 @@ from __future__ import annotations
 from app.domain.entities.agent import Agent, AgentStatus, AgentVersion
 from app.domain.entities.api_key import APIKey
 from app.domain.entities.base import AggregateRoot, Entity
-from app.domain.entities.memory import (
-    AllowedUseLabel,
-    MemoryAggregate,
-    MemoryRecord,
-    MemoryRetentionPolicy,
-    MemoryScope,
-    SessionSummary,
-)
 from app.domain.entities.run import Run, RunStep
 from app.domain.entities.tenant import Tenant, TenantPlan, TenantStatus
 from app.domain.entities.tool_grant import ToolGrant
@@ -32,10 +24,4 @@ __all__ = [
     "RunStep",
     "User",
     "APIKey",
-    "MemoryRecord",
-    "MemoryScope",
-    "AllowedUseLabel",
-    "SessionSummary",
-    "MemoryRetentionPolicy",
-    "MemoryAggregate",
 ]

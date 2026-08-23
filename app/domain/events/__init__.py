@@ -9,6 +9,16 @@ from app.domain.events.agent_events import (
     AgentVersionCreated,
 )
 from app.domain.events.base import DomainEvent, EventHandler, EventPublisher
+from app.domain.events.memory_events import (
+    MemoryAccessDeniedEvent,
+    MemoryCleanupEvent,
+    MemoryExpiredEvent,
+    MemoryRetrievedEvent,
+    MemoryWrittenEvent,
+    RetentionPolicyChangedEvent,
+    SessionCreatedEvent,
+    SessionExpiredEvent,
+)
 from app.domain.events.run_events import (
     RunCancelled,
     RunCompleted,
@@ -44,4 +54,12 @@ __all__ = [
     "TenantSuspended",
     "TenantActivated",
     "TenantDeleted",
+    "MemoryWrittenEvent",
+    "MemoryRetrievedEvent",
+    "MemoryExpiredEvent",
+    "MemoryCleanupEvent",
+    "SessionCreatedEvent",
+    "SessionExpiredEvent",
+    "MemoryAccessDeniedEvent",
+    "RetentionPolicyChangedEvent",
 ]

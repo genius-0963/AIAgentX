@@ -24,6 +24,7 @@ class RunUseCases:
         idempotency_key: str,
         max_steps: int = 100,
         max_cost_usd: float = 10.0,
+        timeout_seconds: int = 90,
         session_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> Run:
@@ -36,6 +37,7 @@ class RunUseCases:
             idempotency_key: Idempotency key for duplicate prevention
             max_steps: Maximum number of steps
             max_cost_usd: Maximum cost in USD
+            timeout_seconds: Maximum execution time in seconds
             session_id: Optional session ID
             metadata: Optional metadata
 
@@ -60,6 +62,7 @@ class RunUseCases:
             idempotency_key=idempotency_key,
             max_steps=max_steps,
             max_cost=Money(int(max_cost_usd * 1_000_000)),  # Convert to microunits
+            timeout_seconds=timeout_seconds,
         )
 
         return await self._repository.create(run)

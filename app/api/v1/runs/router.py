@@ -106,7 +106,6 @@ async def create_run(
         idempotency_key=validated_key,
         max_steps=run_data.limits.max_steps,
         max_cost_usd=run_data.limits.max_cost_usd,
-        timeout_seconds=run_data.limits.timeout_seconds,
         session_id=run_data.session_id,
         metadata=run_data.metadata,
     )

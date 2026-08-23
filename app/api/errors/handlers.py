@@ -8,7 +8,14 @@ from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
-from app.api.errors.exceptions import APIError, ConflictError, NotFoundError, ValidationError
+from app.api.errors.exceptions import (
+    APIError,
+    ConflictError,
+    NotFoundError,
+    PayloadTooLargeError,
+    RateLimitExceededError,
+    ValidationError,
+)
 from app.api.v1.schemas.errors import ErrorDetail
 
 
@@ -162,4 +169,48 @@ async def pydantic_validation_error_handler(
         detail=detail,
         code="VALIDATION_ERROR",
         extra={"errors": errors},
+    )
+
+
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceededError) -> JSONResponse:
+    """Handle RateLimitExceededError exceptions.
+
+    Args:
+        request: The FastAPI request object
+        exc: The RateLimitExceededError exception
+
+    Returns:
+        JSONResponse with rate limit error details
+    """
+    headers = {}
+    if exc.extra and "retry_after" in exc.extra:
+        headers["Retry-After"] = str(exc.extra["retry_after"])
+
+    return create_error_response(
+        request=request,
+        status_code=exc.status_code,
+        title="Rate Limit Exceeded",
+        detail=exc.message,
+        code=exc.error_code,
+        extra=exc.extra,
+    )
+
+
+async def payload_too_large_handler(request: Request, exc: PayloadTooLargeError) -> JSONResponse:
+    """Handle PayloadTooLargeError exceptions.
+
+    Args:
+        request: The FastAPI request object
+        exc: The PayloadTooLargeError exception
+
+    Returns:
+        JSONResponse with payload too large error details
+    """
+    return create_error_response(
+        request=request,
+        status_code=exc.status_code,
+        title="Payload Too Large",
+        detail=exc.message,
+        code=exc.error_code,
+        extra=exc.extra,
     )

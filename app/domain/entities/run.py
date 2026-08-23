@@ -35,12 +35,9 @@ class Run(AggregateRoot):
     max_steps: int = 100
     max_cost: Money = field(default_factory=lambda: Money(10_000_000))  # $10 default
     spent_cost: Money = field(default_factory=lambda: Money(0))
-    timeout_seconds: int = 90  # Default 90 second timeout
-    retry_budget: int = 3  # Default retry budget
     lease_owner: str | None = None
     lease_expires_at: datetime | None = None
     cancel_requested_at: datetime | None = None
-    idempotency_response: dict[str, Any] | None = None
     _steps: list[RunStep] = field(default_factory=list, init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -239,67 +236,6 @@ class Run(AggregateRoot):
     def can_execute(self) -> bool:
         """Check if run can execute."""
         return self.state in {RunState.QUEUED, RunState.RUNNING, RunState.RETRY_SCHEDULED}
-
-    def has_remaining_budget(self, additional_cost: Money) -> bool:
-        """Check if run has remaining budget for additional cost.
-
-        Args:
-            additional_cost: Additional cost to check against budget
-
-        Returns:
-            True if run can afford the additional cost, False otherwise
-        """
-        return (self.spent_cost + additional_cost) <= self.max_cost
-
-    def has_remaining_steps(self) -> bool:
-        """Check if run has remaining steps.
-
-        Returns:
-            True if run has remaining steps, False otherwise
-        """
-        return len(self._steps) < self.max_steps
-
-    def has_remaining_time(self) -> bool:
-        """Check if run has remaining time before timeout.
-
-        Returns:
-            True if run has remaining time, False otherwise
-        """
-        elapsed_seconds = (datetime.now(UTC) - self.created_at).total_seconds()
-        return elapsed_seconds < self.timeout_seconds
-
-    def has_remaining_retries(self) -> bool:
-        """Check if run has remaining retry budget.
-
-        Returns:
-            True if run has remaining retries, False otherwise
-        """
-        return self.attempt < self.retry_budget
-
-    def get_remaining_budget(self) -> Money:
-        """Get remaining budget for the run.
-
-        Returns:
-            Remaining budget as Money value object
-        """
-        return self.max_cost - self.spent_cost
-
-    def get_remaining_steps(self) -> int:
-        """Get remaining steps for the run.
-
-        Returns:
-            Number of remaining steps
-        """
-        return self.max_steps - len(self._steps)
-
-    def get_remaining_time(self) -> float:
-        """Get remaining time in seconds before timeout.
-
-        Returns:
-            Remaining time in seconds
-        """
-        elapsed_seconds = (datetime.now(UTC) - self.created_at).total_seconds()
-        return max(0.0, self.timeout_seconds - elapsed_seconds)
 
 
 @dataclass(slots=True, kw_only=True)

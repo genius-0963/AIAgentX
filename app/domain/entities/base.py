@@ -30,6 +30,7 @@ class Entity(ABC):
         self.updated_at = datetime.now(UTC)
 
 
+@dataclass(slots=True, kw_only=True)
 class AggregateRoot(Entity):
     """Aggregate root that can publish domain events."""
 

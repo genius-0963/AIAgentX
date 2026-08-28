@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from enum import StrEnum
 from functools import lru_cache
-from typing import Annotated
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -60,7 +59,7 @@ class Settings(BaseSettings):
     redis_pool_max_connections: int = 10
     redis_socket_timeout: int = 5
 
-    cors_origins: Annotated[list[str], Field(default_factory=lambda: ["http://localhost:3000"])]
+    cors_origins: str = "http://localhost:3000,http://localhost:8000"
 
     access_token_expire_minutes: int = 30
 
@@ -89,7 +88,7 @@ class Settings(BaseSettings):
 
     # Fallback configuration
     fallback_enabled: bool = False
-    fallback_providers: list[str] = Field(default_factory=list)
+    fallback_providers: str = ""
     fallback_max_attempts: int = 2
 
     # Pricing configuration (per 1M tokens in USD)
@@ -97,6 +96,72 @@ class Settings(BaseSettings):
     pricing_openai_gpt4o_completion_price: float = 10.00
     pricing_anthropic_claude3_opus_prompt_price: float = 15.00
     pricing_anthropic_claude3_opus_completion_price: float = 75.00
+
+    # Observability configuration
+    # OpenTelemetry
+    otel_enabled: bool = True
+    otel_service_name: str = "aiagentx-api"
+    otel_exporter_otlp_endpoint: str = "http://localhost:4317"
+    otel_exporter_otlp_insecure: bool = True
+    otel_traces_sampler: str = "parentbased_traceidratio"
+    otel_traces_sampler_arg: float = 0.1
+    otel_propagators: str = "tracecontext,baggage"
+
+    # Structured Logging
+    log_format: str = "json"  # json or console
+    log_redact_keys: str = "password,secret,token,api_key,authorization,credit_card,ssn"
+    log_level_overrides: str = ""
+
+    # Prometheus Metrics
+    metrics_enabled: bool = True
+    metrics_port: int = 9090
+    metrics_path: str = "/metrics"
+    metrics_buckets: str = "0.005,0.01,0.025,0.05,0.1,0.25,0.5,1.0,2.5,5.0,10.0"
+
+    # Audit System
+    audit_enabled: bool = True
+    audit_outbox_table: str = "audit_outbox"
+    audit_batch_size: int = 100
+    audit_flush_interval_seconds: int = 5
+    audit_retention_days: int = 2555  # 7 years
+    audit_tamper_proof: bool = True
+
+    # Backup & Recovery
+    backup_enabled: bool = False
+    backup_schedule: str = "0 2 * * *"  # Daily at 2 AM UTC
+    backup_retention_days: int = 30
+    backup_encryption_key: str = ""
+    backup_storage_path: str = "/backups"
+    backup_s3_bucket: str = ""
+    backup_s3_prefix: str = "aiagentx/backups"
+
+    @property
+    def log_redact_keys_list(self) -> list[str]:
+        """Return log redact keys as a list."""
+        return [k.strip() for k in self.log_redact_keys.split(",") if k.strip()]
+
+    @property
+    def log_level_overrides_dict(self) -> dict[str, str]:
+        """Return log level overrides as a dict."""
+        if not self.log_level_overrides.strip():
+            return {}
+        import json
+
+        return json.loads(self.log_level_overrides)  # type: ignore[no-any-return]
+
+    @property
+    def metrics_buckets_list(self) -> list[float]:
+        """Return metrics buckets as a list of floats."""
+        return [float(b.strip()) for b in self.metrics_buckets.split(",") if b.strip()]
+
+    @property
+    def fallback_providers_list(self) -> list[str]:
+        """Return fallback providers as a list."""
+        if not self.fallback_providers:
+            return []
+        return [
+            p.strip() for p in self.fallback_providers.split(",") if p.strip()
+        ]
 
     @field_validator("database_url")
     @classmethod
@@ -107,12 +172,10 @@ class Settings(BaseSettings):
             raise ValueError("database_url must use an async driver (asyncpg or psycopg async)")
         return value
 
-    @field_validator("cors_origins", mode="before")
-    @classmethod
-    def _split_cors_origins(cls, value: object) -> object:
-        if isinstance(value, str):
-            return _parse_cors_origins(value)
-        return value
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Return CORS origins as a list."""
+        return _parse_cors_origins(self.cors_origins)
 
     @field_validator("circuit_breaker_failure_rate_threshold")
     @classmethod

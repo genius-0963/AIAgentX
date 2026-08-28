@@ -172,5 +172,7 @@ async def test_global_error_handler_returns_500_for_unhandled() -> None:
         response = await ac.get("/boom")
         assert response.status_code == 500
         body = response.json()
-        assert "request_id" in body
-        assert body["code"] == "internal_error"
+        # Error response has 'error' as top-level key per RFC 7807
+        assert "error" in body
+        assert "request_id" in body["error"]
+        assert body["error"]["code"] == "INTERNAL_ERROR"

@@ -14,7 +14,6 @@ from app.domain.entities.memory import (
     MemoryRetentionPolicy,
 )
 from app.domain.entities.outbox import OutboxEvent
-from app.domain.events.memory_events import MemoryWrittenEvent
 from app.domain.repositories.memory import MemoryRepository, MemoryRetentionPolicyRepository
 from app.domain.repositories.outbox import OutboxRepository
 from app.infrastructure.embeddings.base import EmbeddingService

@@ -49,11 +49,12 @@ class RetryContext:
         }
 
 
-def classify_error(error: Exception) -> ProviderError:
+def classify_error(error: Exception, provider: str = "unknown") -> ProviderError:
     """Classify an error as retryable or non-retryable.
 
     Args:
         error: The exception to classify
+        provider: The provider name (e.g., "openai", "anthropic")
 
     Returns:
         ProviderError with classification
@@ -63,7 +64,7 @@ def classify_error(error: Exception) -> ProviderError:
             is_retryable=True,
             error_type=ErrorType.TIMEOUT.value,
             original_error=error,
-            provider="",
+            provider=provider,
             message="Request timed out",
         )
     elif isinstance(error, httpx.HTTPStatusError):
@@ -75,7 +76,7 @@ def classify_error(error: Exception) -> ProviderError:
                 is_retryable=True,
                 error_type=ErrorType.RATE_LIMIT.value,
                 original_error=error,
-                provider="",
+                provider=provider,
                 message="Rate limit exceeded",
             )
         elif 500 <= status_code < 600:
@@ -83,7 +84,7 @@ def classify_error(error: Exception) -> ProviderError:
                 is_retryable=True,
                 error_type=ErrorType.SERVER_ERROR.value,
                 original_error=error,
-                provider="",
+                provider=provider,
                 message=f"Server error: {status_code}",
             )
         elif status_code == 401:
@@ -91,7 +92,7 @@ def classify_error(error: Exception) -> ProviderError:
                 is_retryable=False,
                 error_type=ErrorType.AUTH_ERROR.value,
                 original_error=error,
-                provider="",
+                provider=provider,
                 message="Authentication failed",
             )
         elif status_code == 400:
@@ -99,7 +100,7 @@ def classify_error(error: Exception) -> ProviderError:
                 is_retryable=False,
                 error_type=ErrorType.VALIDATION_ERROR.value,
                 original_error=error,
-                provider="",
+                provider=provider,
                 message="Request validation failed",
             )
         else:
@@ -107,7 +108,7 @@ def classify_error(error: Exception) -> ProviderError:
                 is_retryable=False,
                 error_type=ErrorType.UNKNOWN.value,
                 original_error=error,
-                provider="",
+                provider=provider,
                 message=f"HTTP error: {status_code}",
             )
     elif isinstance(error, (httpx.ConnectError, httpx.ConnectTimeout)):
@@ -115,7 +116,7 @@ def classify_error(error: Exception) -> ProviderError:
             is_retryable=True,
             error_type=ErrorType.NETWORK_ERROR.value,
             original_error=error,
-            provider="",
+            provider=provider,
             message="Connection failed",
         )
     else:
@@ -123,7 +124,7 @@ def classify_error(error: Exception) -> ProviderError:
             is_retryable=False,
             error_type=ErrorType.UNKNOWN.value,
             original_error=error,
-            provider="",
+            provider=provider,
             message=str(error),
         )
 

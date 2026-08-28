@@ -27,13 +27,13 @@ from app.infrastructure.auth.middleware import (
     require_scopes,
 )
 from app.infrastructure.db.repositories.agent import SQLAgentRepository
-from app.infrastructure.db.session import get_db_session as get_session
+from app.infrastructure.db.session import get_db_session
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
 async def get_agent_use_cases(
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db_session),
 ) -> AgentUseCases:
     """Dependency to get agent use cases."""
     repository = SQLAgentRepository(session)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ErrorDetail(BaseModel):
@@ -52,8 +52,8 @@ class ErrorResponse(BaseModel):
 
     error: ErrorDetail
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "error": {
                     "type": "https://api.aiagentx.com/errors/validation-error",
@@ -65,3 +65,4 @@ class ErrorResponse(BaseModel):
                 }
             }
         }
+    )

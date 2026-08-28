@@ -1,4 +1,4 @@
-"""Run executor with cancellation support and memory integration."""
+"""Run executor with cancellation support, memory integration, and tool security."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from uuid import UUID
 from app.domain.entities.memory import MemoryScope
 from app.domain.entities.run import Run
 from app.domain.repositories.run import RunRepository
+from app.domain.value_objects.state import RunStepKind
 from app.infrastructure.cache.memory_cache import EphemeralMemoryCache
 from app.infrastructure.observability.logging import get_logger
 
@@ -19,6 +20,8 @@ if TYPE_CHECKING:
     from app.application.services.memory_write_service import MemoryWriteService
     from app.application.services.memory_retrieval_service import MemoryRetrievalService
     from app.application.services.session_memory_service import SessionMemoryService
+    from app.application.services.tool_execution_service import ToolExecutionService, ToolExecutionResult
+    from app.domain.services.approval_coordinator import ApprovalCoordinator
 
 logger = get_logger(__name__)
 
@@ -32,8 +35,24 @@ class MemoryContext:
     durable: list[dict]
 
 
+class ToolApprovalRequired(Exception):
+    """Exception raised when tool execution requires approval."""
+
+    def __init__(self, approval_id: UUID) -> None:
+        self.approval_id = approval_id
+        super().__init__(f"Tool execution requires approval: {approval_id}")
+
+
+class ToolExecutionDenied(Exception):
+    """Exception raised when tool execution is denied."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(f"Tool execution denied: {reason}")
+
+
 class RunExecutor:
-    """Executor for runs with cancellation support and memory integration."""
+    """Executor for runs with cancellation support, memory integration, and tool security."""
 
     def __init__(
         self,
@@ -43,6 +62,8 @@ class RunExecutor:
         memory_retrieval_service: MemoryRetrievalService,
         session_memory_service: SessionMemoryService,
         ephemeral_cache: EphemeralMemoryCache,
+        tool_execution_service: ToolExecutionService,
+        approval_coordinator: ApprovalCoordinator,
         worker_id: str,
         check_interval: float = 0.5,
     ) -> None:
@@ -55,6 +76,8 @@ class RunExecutor:
             memory_retrieval_service: Service for retrieving memory
             session_memory_service: Service for session memory
             ephemeral_cache: Ephemeral memory cache
+            tool_execution_service: Tool execution service with security
+            approval_coordinator: Approval coordinator for handling approvals
             worker_id: Worker ID for this executor
             check_interval: Interval in seconds to check for cancellation
         """
@@ -64,11 +87,13 @@ class RunExecutor:
         self._memory_retrieval_service = memory_retrieval_service
         self._session_memory_service = session_memory_service
         self._ephemeral_cache = ephemeral_cache
+        self._tool_execution = tool_execution_service
+        self._approvals = approval_coordinator
         self._worker_id = worker_id
         self._check_interval = check_interval
 
     async def execute_run(self, run_id: UUID) -> None:
-        """Execute a run with cancellation support and memory integration.
+        """Execute a run with cancellation support, memory integration, and tool security.
 
         Args:
             run_id: Run ID to execute
@@ -110,6 +135,11 @@ class RunExecutor:
 
                 # Execute step with memory context
                 await self._execute_step(run)
+
+                # If run is awaiting approval, stop execution
+                if run.state.value == "awaiting_approval":
+                    logger.info("Run awaiting approval, pausing execution", extra={"run_id": str(run_id)})
+                    return
 
                 # Check for cancellation after step
                 if await self._cancellation_service.is_cancelled(run_id):
@@ -234,19 +264,118 @@ class RunExecutor:
         return records
 
     async def _execute_step(self, run: Run) -> None:
-        """Execute a single step of the run.
+        """Execute a single step of the run with tool security.
 
         Args:
             run: Run entity
         """
-        # Placeholder for actual step execution
-        # This would involve model calls, tool invocations, etc.
-        step_sequence = len(run._steps)
-        step = run.add_step(step_sequence, "model_call", {"test": "data"})
+        # Get the next step to execute
+        step = self._get_next_pending_step(run)
+        if not step:
+            return
+
         step.start()
-        await asyncio.sleep(0.1)  # Simulate work
-        step.complete({"output": "step result"})
+        await self._run_repository.update_step(run.id, step)
+
+        try:
+            if step.kind == RunStepKind.TOOL_CALL:
+                result = await self._execute_tool_call(run, step)
+            elif step.kind == RunStepKind.APPROVAL_REQUEST:
+                result = await self._handle_approval_step(run, step)
+            else:
+                result = await self._execute_other_step(run, step)
+
+            step.complete(result.get("output", {}))
+            
+        except ToolApprovalRequired as e:
+            # Run transitions to AWAITING_APPROVAL
+            run.request_approval()
+            step.fail(f"Approval required: {e.approval_id}")
+            
+        except ToolExecutionDenied as e:
+            step.fail(e.reason)
+            # Run may continue or fail based on configuration
+            
+        except Exception as e:
+            step.fail(str(e))
+            raise
+        
+        await self._run_repository.update_step(run.id, step)
         await self._run_repository.update(run)
+
+    def _get_next_pending_step(self, run: Run) -> Run | None:
+        """Get the next pending step to execute."""
+        # Find the first step that hasn't been executed
+        for step in run._steps:
+            if step.state.value in ("queued", "running"):
+                return step
+        return None
+
+    async def _execute_tool_call(self, run: Run, step: Run) -> dict[str, Any]:
+        """Execute tool call with security checks."""
+        tool_name = step.input_data.get("tool_name") if step.input_data else None
+        action = step.input_data.get("action", "execute") if step.input_data else "execute"
+        input_data = step.input_data.get("input", {}) if step.input_data else {}
+        resource = step.input_data.get("resource") if step.input_data else None
+        
+        if not tool_name:
+            raise ValueError("Tool name required for tool_call step")
+        
+        # Get agent version ID from run
+        agent_version_id = run.agent_version_id
+        
+        # Execute with security
+        result = await self._tool_execution.execute_tool(
+            run=run,
+            agent_version_id=agent_version_id,
+            tool_name=tool_name,
+            action=action,
+            input_data=input_data,
+            resource=resource,
+            context={
+                "run_id": str(run.id),
+                "step_sequence": step.sequence,
+                "tenant_id": str(run.tenant_id),
+            },
+        )
+        
+        if result.awaiting_approval:
+            raise ToolApprovalRequired(approval_id=result.approval_id)
+        
+        if not result.success:
+            raise ToolExecutionDenied(reason=result.reason)
+        
+        return {"output": result.output}
+
+    async def _handle_approval_step(self, run: Run, step: Run) -> dict[str, Any]:
+        """Handle explicit approval request step."""
+        # This allows agents to explicitly request approval in their logic
+        approval_id = step.input_data.get("approval_id") if step.input_data else None
+        if not approval_id:
+            raise ValueError("approval_id required for approval_request step")
+        
+        # Check approval status
+        request = await self._approvals.get(approval_id)
+        if not request:
+            raise ValueError(f"Approval request {approval_id} not found")
+        
+        if request.state.value == "approved":
+            return {"output": request.response_data or {}}
+        elif request.state.value == "denied":
+            raise ToolExecutionDenied(reason=request.denial_reason or "Approval denied")
+        elif request.state.value == "expired":
+            raise ToolExecutionDenied(reason="Approval request expired")
+        else:
+            # Still pending - transition run to awaiting approval
+            run.request_approval()
+            raise ToolApprovalRequired(approval_id=approval_id)
+
+    async def _execute_other_step(self, run: Run, step: Run) -> dict[str, Any]:
+        """Execute other step types (model_call, memory_read, etc.)."""
+        # Placeholder for actual step execution
+        # This would involve model calls, memory operations, etc.
+        await asyncio.sleep(0.1)  # Simulate work
+        return {"output": "step result"}
 
     async def _handle_cancellation(self, run: Run) -> None:
         """Handle cancellation of a run.

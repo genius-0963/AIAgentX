@@ -42,6 +42,11 @@ class TestMemoryWriteService:
         self.chunker = MagicMock(spec=TextChunker)
         self.normalizer = MagicMock(spec=TextNormalizer)
 
+        # Configure memory_repo.create to return the record passed to it
+        async def create_record(record):
+            return record
+        self.memory_repo.create.side_effect = create_record
+
         # Setup defaults
         self.normalizer.normalize.return_value = "normalized content"
         self.normalizer.validate_size.return_value = True

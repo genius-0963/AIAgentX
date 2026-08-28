@@ -13,7 +13,7 @@ from app.api.v1.schemas.audit import (
     AuditLogListResponse,
     AuditStatsResponse,
 )
-from app.application.auth.dependencies import (
+from app.infrastructure.auth.middleware import (
     AuthContext,
     get_current_tenant,
     require_scopes,

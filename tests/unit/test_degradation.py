@@ -126,14 +126,11 @@ async def test_check_recovery_conditions_full_mode(degradation_service):
 @pytest.mark.asyncio
 async def test_check_recovery_conditions_degraded_mode(degradation_service):
     """Test recovery check when in degraded mode."""
-    # Enter degraded mode
-    await degradation_service._enter_degradation_mode(
-        DegradationMode.DEGRADED_DB,
-        reason="Test",
-        affected_components=["database"],
-    )
+    # Trigger database failures to enter degraded mode
+    for _ in range(5):
+        await degradation_service.handle_database_failure()
 
-    # With DB failures, recovery should not be possible
+    # Now in degraded mode, recovery should not be possible (failures not reset)
     can_recover = await degradation_service.check_recovery_conditions()
 
     assert can_recover is False

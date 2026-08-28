@@ -142,7 +142,9 @@ class FakeProvider(BaseProvider):
             Exception based on error_type configuration
         """
         if self._error_type == "timeout":
-            await asyncio.sleep(100)  # Simulate timeout
+            import httpx
+
+            raise httpx.TimeoutException("Request timed out")
         elif self._error_type == "rate_limit":
             from app.domain.providers.exceptions import ProviderRateLimitError
 

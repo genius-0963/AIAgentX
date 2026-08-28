@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.value_objects.state import RunState, RunStepKind
 from app.infrastructure.db.base import Base, TimestampMixin, UUIDMixin
+from app.infrastructure.db.models.approval import ApprovalRequestModel
 
 
 class RunModel(Base, UUIDMixin, TimestampMixin):
@@ -49,6 +50,9 @@ class RunModel(Base, UUIDMixin, TimestampMixin):
 
     steps: Mapped[list["RunStepModel"]] = relationship(
         "RunStepModel", back_populates="run", cascade="all, delete-orphan", order_by="RunStepModel.sequence"
+    )
+    approval_requests: Mapped[list["ApprovalRequestModel"]] = relationship(
+        "ApprovalRequestModel", back_populates="run", cascade="all, delete-orphan"
     )
 
     tenant: Mapped["TenantModel"] = relationship("TenantModel", back_populates="runs")

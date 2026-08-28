@@ -48,7 +48,7 @@ class TestTextChunker:
 
     def test_chunk_long_text_fallback(self) -> None:
         # Use chunker without tiktoken (fallback mode)
-        chunker = TextChunker(chunk_size=50, overlap=0.1)
+        chunker = TextChunker(chunk_size=100, overlap=0.1)
         text = " ".join([f"word{i}" for i in range(100)])  # ~600 chars
         chunks = chunker.chunk_text(text)
 

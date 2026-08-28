@@ -24,9 +24,7 @@ def get_session_factory(settings: Settings) -> async_sessionmaker[AsyncSession]:
     )
 
 
-async def get_session(
-    factory: async_sessionmaker[AsyncSession],
-) -> AsyncGenerator[AsyncSession, None]:
+async def get_session(factory) -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency that yields an ``AsyncSession`` per request."""
     async with factory() as session:
         try:
@@ -38,20 +36,25 @@ async def get_session(
             await session.close()
 
 
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    """FastAPI dependency for database session using app settings."""
+def get_db_session_factory():
+    """Get the session factory (creates a new one if needed)."""
     from app.settings import get_settings
     from app.infrastructure.db.engine import create_engine
-    from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     settings = get_settings()
     engine = create_engine(settings)
-    factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
+    return async_sessionmaker(
         bind=engine,
         class_=AsyncSession,
         expire_on_commit=False,
         autoflush=False,
     )
+
+
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """FastAPI dependency for database session using app settings."""
+    factory = get_db_session_factory()
     async with factory() as session:
         try:
             yield session

@@ -70,7 +70,7 @@ def test_usage_record_validation():
     assert record.total_tokens == 30
 
     # Invalid: total tokens mismatch
-    with pytest.raises(ValueError, match="total_tokens must equal prompt"):
+    with pytest.raises(ValueError, match="Total tokens must equal prompt"):
         UsageRecord(
             provider="openai",
             model="gpt-4o",

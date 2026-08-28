@@ -35,6 +35,7 @@ class Run(AggregateRoot):
     max_steps: int = 100
     max_cost: Money = field(default_factory=lambda: Money(10_000_000))  # $10 default
     spent_cost: Money = field(default_factory=lambda: Money(0))
+    timeout_seconds: int = 90
     lease_owner: str | None = None
     lease_expires_at: datetime | None = None
     cancel_requested_at: datetime | None = None
@@ -198,7 +199,7 @@ class Run(AggregateRoot):
             RunStepCreated(
                 run_id=self.id,
                 sequence=sequence,
-                kind=kind.value,
+                kind=str(kind),
                 input_data=input_data,
             )
         )

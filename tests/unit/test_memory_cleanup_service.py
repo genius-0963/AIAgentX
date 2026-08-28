@@ -153,10 +153,19 @@ class TestMemoryCleanupService:
     @pytest.mark.asyncio
     async def test_run_full_cleanup(self) -> None:
         self.memory_repo.delete_expired.return_value = 10
-        self.memory_repo.get_storage_size_bytes.side_effect = [2000000, 1500000, 2000000, 1800000, 2000000, 1900000]
+        # Provide enough values for all get_storage_size_bytes calls:
+        # cleanup_expired: 3 scopes * 2 = 6
+        # enforce_retention_policies: 3 scopes * 2 = 6
+        # enforce_quotas: 3 scopes * 1 = 3
+        # Total: 15 calls
+        storage_values = []
+        for _ in range(15):
+            storage_values.append(2000000)
+            storage_values.append(1500000)
+        self.memory_repo.get_storage_size_bytes.side_effect = storage_values
+        
         self.retention_repo.get_by_tenant_scope.return_value = None
         self.memory_repo.count_by_tenant.return_value = 50
-        self.memory_repo.get_storage_size_bytes.return_value = 5 * 1024 * 1024
 
         result = await self.service.run_full_cleanup(self.tenant_id)
 

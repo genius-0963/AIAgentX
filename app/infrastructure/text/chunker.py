@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    try:
-        import tiktoken
-    except ImportError:
-        tiktoken = None
+try:
+    import tiktoken
+except ImportError:
+    tiktoken = None
 
 
 class TextChunker:
@@ -33,8 +31,8 @@ class TextChunker:
             overlap: Overlap ratio between chunks (0.0 to 1.0)
             encoding_name: Tiktoken encoding name
         """
-        if not MIN_CHUNK_SIZE <= chunk_size <= MAX_CHUNK_SIZE:
-            raise ValueError(f"chunk_size must be between {MIN_CHUNK_SIZE} and {MAX_CHUNK_SIZE}")
+        if not self.MIN_CHUNK_SIZE <= chunk_size <= self.MAX_CHUNK_SIZE:
+            raise ValueError(f"chunk_size must be between {self.MIN_CHUNK_SIZE} and {self.MAX_CHUNK_SIZE}")
 
         if not 0.0 <= overlap < 1.0:
             raise ValueError("overlap must be between 0.0 and 1.0")
@@ -126,9 +124,11 @@ class TextChunker:
             if chunk_text:
                 chunks.append(chunk_text)
 
-            start = end - overlap_size
-            if start >= len(text):
+            # Ensure start advances; if overlap would not advance start, break
+            new_start = end - overlap_size
+            if new_start <= start or new_start >= len(text):
                 break
+            start = new_start
 
         return chunks
 

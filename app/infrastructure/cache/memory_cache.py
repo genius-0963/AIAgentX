@@ -315,7 +315,8 @@ class SessionMemoryCache:
             serialized = json.dumps(entry, default=str)
 
             # Use pipeline for atomic operations
-            async with r.pipeline(transaction=True) as pipe:
+            pipe = await r.pipeline(transaction=True)
+            async with pipe:
                 pipe.rpush(list_key, serialized)
                 pipe.ltrim(list_key, -max_entries, -1)
                 pipe.expire(list_key, ttl or self._default_ttl)
@@ -457,6 +458,6 @@ class MemoryCacheManager:
     async def close(self) -> None:
         """Close Redis connections."""
         if self.ephemeral._redis:
-            await self.ephemeral._redis.close()
+            await self.ephemeral._redis.aclose()
         if self.session._redis and self.session._redis != self.ephemeral._redis:
-            await self.session._redis.close()
+            await self.session._redis.aclose()

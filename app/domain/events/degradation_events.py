@@ -7,11 +7,9 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from app.domain.events.base import DomainEvent
-
 
 @dataclass(frozen=True, slots=True)
-class DegradationEntered(DomainEvent):
+class DegradationEntered:
     """Emitted when system enters a degradation mode."""
 
     mode: str
@@ -31,7 +29,7 @@ class DegradationEntered(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True)
-class DegradationExited(DomainEvent):
+class DegradationExited:
     """Emitted when system exits a degradation mode."""
 
     previous_mode: str
@@ -49,7 +47,7 @@ class DegradationExited(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True)
-class DegradationComponentFailed(DomainEvent):
+class DegradationComponentFailed:
     """Emitted when a component fails triggering degradation."""
 
     component: str
@@ -69,7 +67,7 @@ class DegradationComponentFailed(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True)
-class DegradationComponentRecovered(DomainEvent):
+class DegradationComponentRecovered:
     """Emitted when a component recovers from failure."""
 
     component: str

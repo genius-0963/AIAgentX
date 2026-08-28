@@ -36,6 +36,11 @@ class AggregateRoot(Entity):
 
     _events: list[Any] = field(default_factory=list, init=False, repr=False)
 
+    @property
+    def events(self) -> list[Any]:
+        """Get pending events (for testing)."""
+        return self._events
+
     def add_event(self, event: Any) -> None:
         """Add a domain event to be published."""
         self._events.append(event)

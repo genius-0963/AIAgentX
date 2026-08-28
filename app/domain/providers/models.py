@@ -105,6 +105,7 @@ class ProviderError:
             "server_error",
             "auth_error",
             "validation_error",
+            "network_error",
             "unknown",
         }
         if self.error_type not in valid_error_types:

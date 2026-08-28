@@ -134,6 +134,15 @@ class IdempotencyService:
         Returns:
             True if stored successfully, False otherwise
         """
+        # Check if key exists first
+        existing = await self._store.get(key, str(tenant_id))
+        if not existing:
+            logger.warning(
+                "Attempted to store response for non-existent idempotency key",
+                extra={"key": key, "tenant_id": str(tenant_id)},
+            )
+            return False
+
         success = await self._store.set_response(
             key=key,
             tenant_id=str(tenant_id),

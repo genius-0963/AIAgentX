@@ -7,11 +7,9 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from app.domain.events.base import DomainEvent
-
 
 @dataclass(frozen=True, slots=True)
-class BudgetExceeded(DomainEvent):
+class BudgetExceeded:
     """Emitted when a run exceeds its budget limit."""
 
     run_id: UUID
@@ -33,7 +31,7 @@ class BudgetExceeded(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True)
-class StepLimitExceeded(DomainEvent):
+class StepLimitExceeded:
     """Emitted when a run exceeds its step limit."""
 
     run_id: UUID
@@ -53,7 +51,7 @@ class StepLimitExceeded(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True)
-class TimeoutExceeded(DomainEvent):
+class TimeoutExceeded:
     """Emitted when a run exceeds its time limit."""
 
     run_id: UUID
@@ -73,7 +71,7 @@ class TimeoutExceeded(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True)
-class TenantBudgetExceeded(DomainEvent):
+class TenantBudgetExceeded:
     """Emitted when a tenant exceeds its budget limit."""
 
     tenant_id: UUID
@@ -95,7 +93,7 @@ class TenantBudgetExceeded(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True)
-class BudgetWarning(DomainEvent):
+class BudgetWarning:
     """Emitted when a run approaches its budget limit (warning threshold)."""
 
     run_id: UUID
@@ -118,7 +116,7 @@ class BudgetWarning(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True)
-class CostRecorded(DomainEvent):
+class CostRecorded:
     """Emitted when cost is successfully recorded against a run."""
 
     run_id: UUID

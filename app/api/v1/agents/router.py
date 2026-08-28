@@ -27,7 +27,7 @@ from app.infrastructure.auth.middleware import (
     require_scopes,
 )
 from app.infrastructure.db.repositories.agent import SQLAgentRepository
-from app.infrastructure.db.session import get_session
+from app.infrastructure.db.session import get_db_session as get_session
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -52,7 +52,7 @@ async def create_agent(
     auth: AuthContext = Depends(require_scopes("agents:write")),
     tenant_id: UUID = Depends(get_current_tenant),
     use_cases: AgentUseCases = Depends(get_agent_use_cases),
-) -> Agent:
+) -> AgentResponse:
     """Create a new agent definition.
 
     Creates a new agent with the given name and optional description.
@@ -66,7 +66,15 @@ async def create_agent(
         name=agent_data.name,
         description=agent_data.description,
     )
-    return agent
+    return AgentResponse(
+        id=agent.id,
+        tenant_id=agent.tenant_id,
+        name=agent.name,
+        description=agent.description,
+        versions=[],
+        created_at=agent.created_at.isoformat(),
+        updated_at=agent.updated_at.isoformat(),
+    )
 
 
 @router.get(

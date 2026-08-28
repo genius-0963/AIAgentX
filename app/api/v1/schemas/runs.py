@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.domain.value_objects.state import RunState
 
@@ -75,8 +75,8 @@ class RunResponse(BaseModel):
     agent_version: int = Field(..., description="Agent version used")
     events_url: str = Field(..., description="URL for SSE events stream")
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": "run_01J...",
                 "state": "queued",
@@ -84,6 +84,7 @@ class RunResponse(BaseModel):
                 "events_url": "/v1/runs/run_01J.../events",
             }
         }
+    )
 
 
 class UsageSummary(BaseModel):
@@ -113,5 +114,4 @@ class RunStatusResponse(BaseModel):
         description="Cancellation request timestamp (ISO 8601)",
     )
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

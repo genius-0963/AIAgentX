@@ -7,11 +7,9 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from app.domain.events.base import DomainEvent
-
 
 @dataclass(frozen=True, slots=True)
-class CancellationRequested(DomainEvent):
+class CancellationRequested:
     """Emitted when cancellation is requested for a run."""
 
     run_id: UUID
@@ -31,7 +29,7 @@ class CancellationRequested(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True)
-class CancellationAcknowledged(DomainEvent):
+class CancellationAcknowledged:
     """Emitted when a worker acknowledges a cancellation request."""
 
     run_id: UUID
@@ -51,7 +49,7 @@ class CancellationAcknowledged(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True)
-class CancellationCompleted(DomainEvent):
+class CancellationCompleted:
     """Emitted when cancellation is successfully completed."""
 
     run_id: UUID
@@ -75,7 +73,7 @@ class CancellationCompleted(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True)
-class CancellationTimeout(DomainEvent):
+class CancellationTimeout:
     """Emitted when cancellation does not complete within timeout."""
 
     run_id: UUID
@@ -95,7 +93,7 @@ class CancellationTimeout(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True)
-class CancellationSignal(DomainEvent):
+class CancellationSignal:
     """Emitted when a cancellation signal is sent via Redis pub/sub."""
 
     run_id: UUID

@@ -282,3 +282,15 @@ class RateLimitService:
             "Rate limits updated for plan",
             extra={"plan": plan, "limits": limits},
         )
+
+    async def health_check(self) -> bool:
+        """Check if rate limiting service is healthy.
+
+        Returns:
+            True if healthy, False otherwise
+        """
+        try:
+            return await self._rate_limiter.health_check()
+        except Exception as e:
+            logger.error("Rate limit service health check failed", extra={"error": str(e)})
+            return False

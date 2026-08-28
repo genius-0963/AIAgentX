@@ -1,0 +1,104 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: aiagentx-staging
+
+resources:
+  - ../../base
+
+namePrefix: staging-
+
+labels:
+  - includeSelectors: true
+    pairs:
+      environment: staging
+      app.kubernetes.io/managed-by: kustomize
+
+commonAnnotations:
+  app.kubernetes.io/version: "0.1.0-staging"
+
+images:
+  - name: aiagentx/api
+    newTag: 0.1.0-staging
+  - name: aiagentx/worker
+    newTag: 0.1.0-staging
+
+replicas:
+  - name: aiagentx-api
+    count: 2
+  - name: aiagentx-worker
+    count: 1
+
+configMapGenerator:
+  - name: aiagentx-config
+    behavior: merge
+    literals:
+      - ENVIRONMENT=staging
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - OTEL_TRACES_SAMPLER_ARG=0.5
+      - CORS_ORIGINS=https://staging.aiagentx.io
+      - DB_POOL_SIZE=5
+      - DB_MAX_OVERFLOW=10
+      - REDIS_POOL_MAX_CONNECTIONS=10
+
+patches:
+  - patch: |-
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: staging-aiagentx-api-hpa
+      spec:
+        minReplicas: 2
+        maxReplicas: 5
+    target:
+      kind: HorizontalPodAutoscaler
+      name: aiagentx-api-hpa
+
+  - patch: |-
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: staging-aiagentx-worker-hpa
+      spec:
+        minReplicas: 1
+        maxReplicas: 3
+    target:
+      kind: HorizontalPodAutoscaler
+      name: aiagentx-worker-hpa
+
+  - patch: |-
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: staging-aiagentx-api-pdb
+      spec:
+        minAvailable: 1
+    target:
+      kind: PodDisruptionBudget
+      name: aiagentx-api-pdb
+
+  - patch: |-
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: staging-aiagentx-api
+      spec:
+        rules:
+          - host: staging-api.aiagentx.io
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: staging-aiagentx-api
+                      port:
+                        number: 80
+        tls:
+          - hosts:
+              - staging-api.aiagentx.io
+            secretName: staging-aiagentx-api-tls
+    target:
+      kind: Ingress
+      name: aiagentx-api

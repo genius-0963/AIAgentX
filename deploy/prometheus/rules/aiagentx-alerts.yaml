@@ -1,0 +1,333 @@
+groups:
+  - name: aiagentx-api-alerts
+    interval: 30s
+    rules:
+      # High error rate alert
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(api_requests_total{status=~"5.."}[5m])) / sum(rate(api_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "High API error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for API endpoints"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/api-high-error-rate.md"
+
+      # High latency alert
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(api_request_duration_seconds_bucket[5m])) by (le)) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High API latency detected"
+          description: "P95 latency is {{ $value }}s"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/api-high-latency.md"
+
+      # API down alert
+      - alert: APIDown
+        expr: |
+          up{job="aiagentx-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "API service is down"
+          description: "API has been down for more than 1 minute"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/api-down.md"
+
+  - name: aiagentx-worker-alerts
+    interval: 30s
+    rules:
+      # Queue age high
+      - alert: QueueAgeHigh
+        expr: |
+          max(worker_queue_age_seconds{state="queued"}) > 60
+        for: 2m
+        labels:
+          severity: warning
+          component: worker
+        annotations:
+          summary: "Worker queue age is high"
+          description: "Oldest queued run is {{ $value }}s old"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/worker-queue-age-high.md"
+
+      # High lease conflicts
+      - alert: HighLeaseConflicts
+        expr: |
+          sum(rate(worker_lease_conflicts_total[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: worker
+        annotations:
+          summary: "High worker lease conflicts"
+          description: "Lease conflict rate is {{ $value }}/sec"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/worker-lease-conflicts.md"
+
+      # Worker down
+      - alert: WorkerDown
+        expr: |
+          up{job="aiagentx-worker"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: worker
+        annotations:
+          summary: "Worker service is down"
+          description: "Worker has been down for more than 1 minute"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/worker-down.md"
+
+      # No active workers
+      - alert: NoActiveWorkers
+        expr: |
+          sum(worker_active_runs) == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: worker
+        annotations:
+          summary: "No active workers processing runs"
+          description: "No workers have active runs for 5 minutes"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/no-active-workers.md"
+
+  - name: aiagentx-provider-alerts
+    interval: 30s
+    rules:
+      # Provider circuit breaker open
+      - alert: ProviderCircuitBreakerOpen
+        expr: |
+          provider_circuit_state == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: provider
+        annotations:
+          summary: "Provider circuit breaker is open"
+          description: "Provider {{ $labels.provider }} circuit breaker is open"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/provider-circuit-open.md"
+
+      # Provider high error rate
+      - alert: ProviderHighErrorRate
+        expr: |
+          sum(rate(provider_errors_total[5m])) by (provider) / sum(rate(provider_requests_total[5m])) by (provider) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: provider
+        annotations:
+          summary: "Provider high error rate"
+          description: "Provider {{ $labels.provider }} error rate is {{ $value | humanizePercentage }}"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/provider-high-error-rate.md"
+
+      # Provider high latency
+      - alert: ProviderHighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(provider_request_duration_seconds_bucket[5m])) by (le, provider)) > 30
+        for: 5m
+        labels:
+          severity: warning
+          component: provider
+        annotations:
+          summary: "Provider high latency"
+          description: "Provider {{ $labels.provider }} P95 latency is {{ $value }}s"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/provider-high-latency.md"
+
+      # Fallback activations
+      - alert: ProviderFallbackActivations
+        expr: |
+          rate(provider_fallback_activations_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          component: provider
+        annotations:
+          summary: "Provider fallback activations detected"
+          description: "Fallback from {{ $labels.from_provider }} to {{ $labels.to_provider }} at {{ $value }}/sec"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/provider-fallback.md"
+
+  - name: aiagentx-tool-alerts
+    interval: 30s
+    rules:
+      # Tool high denial rate
+      - alert: ToolHighDenialRate
+        expr: |
+          sum(rate(tool_policy_denials_total[5m])) / sum(rate(tool_executions_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: tools
+        annotations:
+          summary: "High tool policy denial rate"
+          description: "Policy denial rate is {{ $value | humanizePercentage }}"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/tool-high-denial-rate.md"
+
+      # Tool high latency
+      - alert: ToolHighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(tool_execution_duration_seconds_bucket[5m])) by (le, tool_name)) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: tools
+        annotations:
+          summary: "Tool high latency"
+          description: "Tool {{ $labels.tool_name }} P95 latency is {{ $value }}s"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/tool-high-latency.md"
+
+      # Tool execution failures
+      - alert: ToolExecutionFailures
+        expr: |
+          sum(rate(tool_executions_total{status="error"}[5m])) > 1
+        for: 2m
+        labels:
+          severity: warning
+          component: tools
+        annotations:
+          summary: "Tool execution failures"
+          description: "Tool {{ $labels.tool_name }} error rate is {{ $value }}/sec"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/tool-execution-failures.md"
+
+  - name: aiagentx-database-alerts
+    interval: 30s
+    rules:
+      # Database pool exhaustion
+      - alert: DatabasePoolExhausted
+        expr: |
+          db_pool_connections_active / db_pool_connections_total > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection pool exhausted"
+          description: "Pool usage is {{ $value | humanizePercentage }}"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/db-pool-exhausted.md"
+
+      # Database high query latency
+      - alert: DatabaseHighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le)) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Database high query latency"
+          description: "P95 query latency is {{ $value }}s"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/db-high-latency.md"
+
+      # Database query errors
+      - alert: DatabaseQueryErrors
+        expr: |
+          rate(db_query_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Database query errors"
+          description: "DB error rate is {{ $value }}/sec"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/db-query-errors.md"
+
+      # Redis pool exhaustion
+      - alert: RedisPoolExhausted
+        expr: |
+          redis_pool_connections_active / redis_pool_connections_total > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          component: cache
+        annotations:
+          summary: "Redis connection pool exhausted"
+          description: "Pool usage is {{ $value | humanizePercentage }}"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/redis-pool-exhausted.md"
+
+  - name: aiagentx-business-alerts
+    interval: 60s
+    rules:
+      # Cost spike
+      - alert: CostSpike
+        expr: |
+          rate(cost_usd_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "Cost spike detected"
+          description: "Cost rate is ${{ $value }}/sec (${{ $value | humanize }} / hour)"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/cost-spike.md"
+
+      # Run creation spike
+      - alert: RunCreationSpike
+        expr: |
+          rate(runs_total[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "Run creation spike"
+          description: "Run creation rate is {{ $value }}/sec"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/run-creation-spike.md"
+
+  - name: aiagentx-infra-alerts
+    interval: 60s
+    rules:
+      # Pod memory high
+      - alert: PodMemoryHigh
+        expr: |
+          (container_memory_usage_bytes / container_spec_memory_limit_bytes) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "Pod memory usage high"
+          description: "Pod {{ $labels.pod }} memory usage is {{ $value | humanizePercentage }}"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/pod-memory-high.md"
+
+      # Pod CPU throttling
+      - alert: PodCPUThrottling
+        expr: |
+          rate(container_cpu_cfs_throttled_periods_total[5m]) / rate(container_cpu_cfs_periods_total[5m]) > 0.25
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "Pod CPU throttling"
+          description: "Pod {{ $labels.pod }} is throttled {{ $value | humanizePercentage }} of the time"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/pod-cpu-throttling.md"
+
+      # PV almost full
+      - alert: PersistentVolumeAlmostFull
+        expr: |
+          (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "Persistent volume almost full"
+          description: "PV {{ $labels.persistentvolumeclaim }} is {{ $value | humanizePercentage }} full"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/pv-almost-full.md"
+
+      # HPA at max replicas
+      - alert: HPAAtMaxReplicas
+        expr: |
+          kube_hpa_status_current_replicas == kube_hpa_spec_max_replicas
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "HPA at max replicas"
+          description: "HPA {{ $labels.horizontalpodautoscaler }} has been at max replicas for 10 minutes"
+          runbook_url: "https://github.com/aiagentx/runbooks/blob/main/hpa-at-max-replicas.md"

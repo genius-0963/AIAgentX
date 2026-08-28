@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aiagentx-api
+  namespace: aiagentx
+  labels:
+    app.kubernetes.io/name: aiagentx
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: aiagentx-platform
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.aiagentx.io
+      secretName: aiagentx-api-tls
+  rules:
+    - host: api.aiagentx.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aiagentx-api
+                port:
+                  number: 80

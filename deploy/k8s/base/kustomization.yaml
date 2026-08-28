@@ -1,0 +1,94 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: aiagentx
+
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/managed-by: kustomize
+      app.kubernetes.io/part-of: aiagentx-platform
+
+commonAnnotations:
+  app.kubernetes.io/version: "0.1.0"
+
+resources:
+  - namespace.yaml
+  - service-api.yaml
+  - ingress.yaml
+  - deployment-api.yaml
+  - deployment-worker.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - network-policies.yaml
+  - rbac.yaml
+
+configMapGenerator:
+  - name: aiagentx-config
+    behavior: create
+    literals:
+      - APP_NAME=AIAgentX
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+      - API_PREFIX=/v1
+      - LOG_FORMAT=json
+      - LOG_REDACT_KEYS=password,secret,token,api_key,authorization,credit_card,ssn
+      - LOG_LEVEL_OVERRIDES={}
+      - METRICS_ENABLED=true
+      - METRICS_PORT=9090
+      - METRICS_PATH=/metrics
+      - METRICS_BUCKETS=0.005,0.01,0.025,0.05,0.1,0.25,0.5,1.0,2.5,5.0,10.0
+      - OTEL_ENABLED=true
+      - OTEL_SERVICE_NAME=aiagentx-api
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+      - OTEL_TRACES_SAMPLER=parentbased_traceidratio
+      - OTEL_TRACES_SAMPLER_ARG=0.1
+      - OTEL_PROPAGATORS=tracecontext,baggage
+      - AUDIT_ENABLED=true
+      - AUDIT_OUTBOX_TABLE=audit_outbox
+      - AUDIT_BATCH_SIZE=100
+      - AUDIT_FLUSH_INTERVAL_SECONDS=5
+      - AUDIT_RETENTION_DAYS=2555
+      - AUDIT_TAMPER_PROOF=true
+      - DB_POOL_SIZE=10
+      - DB_MAX_OVERFLOW=20
+      - DB_POOL_TIMEOUT=30
+      - DB_ECHO=false
+      - REDIS_POOL_MAX_CONNECTIONS=20
+      - REDIS_SOCKET_TIMEOUT=5
+      - CORS_ORIGINS=https://app.aiagentx.io,https://dashboard.aiagentx.io
+      - PROVIDER_MAX_RETRIES=2
+      - PROVIDER_INITIAL_BACKOFF_MS=1000
+      - PROVIDER_MAX_BACKOFF_MS=10000
+      - PROVIDER_BACKOFF_MULTIPLIER=2.0
+      - PROVIDER_RETRY_JITTER=true
+      - PROVIDER_TIMEOUT_SECONDS=45
+      - PROVIDER_CONNECT_TIMEOUT_SECONDS=3
+      - CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD=0.5
+      - CIRCUIT_BREAKER_MINIMUM_REQUESTS=10
+      - CIRCUIT_BREAKER_OPEN_TIMEOUT_SECONDS=60
+      - CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS=3
+
+secretGenerator:
+  - name: aiagentx-secrets
+    behavior: create
+    literals:
+      - DATABASE_URL=postgresql+asyncpg://aiagentx:CHANGE_ME@postgres:5432/aiagentx
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=CHANGE_ME_GENERATE_SECURE_KEY
+      - OPENAI_API_KEY=
+      - ANTHROPIC_API_KEY=
+      - BACKUP_ENCRYPTION_KEY=
+      - BACKUP_S3_BUCKET=
+      - BACKUP_S3_PREFIX=aiagentx/backups
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+      - AWS_DEFAULT_REGION=us-east-1
+
+images:
+  - name: aiagentx/api
+    newTag: 0.1.0
+  - name: aiagentx/worker
+    newTag: 0.1.0

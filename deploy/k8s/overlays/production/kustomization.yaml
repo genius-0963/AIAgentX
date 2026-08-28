@@ -1,0 +1,130 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: aiagentx
+
+resources:
+  - ../../base
+
+labels:
+  - includeSelectors: true
+    pairs:
+      environment: production
+      app.kubernetes.io/managed-by: kustomize
+
+commonAnnotations:
+  app.kubernetes.io/version: "0.1.0"
+
+images:
+  - name: aiagentx/api
+    newTag: 0.1.0
+  - name: aiagentx/worker
+    newTag: 0.1.0
+
+replicas:
+  - name: aiagentx-api
+    count: 5
+  - name: aiagentx-worker
+    count: 3
+
+configMapGenerator:
+  - name: aiagentx-config
+    behavior: merge
+    literals:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+      - OTEL_TRACES_SAMPLER_ARG=0.05
+      - CORS_ORIGINS=https://app.aiagentx.io,https://dashboard.aiagentx.io
+      - DB_POOL_SIZE=20
+      - DB_MAX_OVERFLOW=40
+      - REDIS_POOL_MAX_CONNECTIONS=50
+
+patches:
+  - patch: |-
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: aiagentx-api-hpa
+      spec:
+        minReplicas: 5
+        maxReplicas: 50
+    target:
+      kind: HorizontalPodAutoscaler
+      name: aiagentx-api-hpa
+
+  - patch: |-
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: aiagentx-worker-hpa
+      spec:
+        minReplicas: 3
+        maxReplicas: 20
+    target:
+      kind: HorizontalPodAutoscaler
+      name: aiagentx-worker-hpa
+
+  - patch: |-
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: aiagentx-api-pdb
+      spec:
+        minAvailable: 3
+    target:
+      kind: PodDisruptionBudget
+      name: aiagentx-api-pdb
+
+  - patch: |-
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: aiagentx-worker-pdb
+      spec:
+        minAvailable: 2
+    target:
+      kind: PodDisruptionBudget
+      name: aiagentx-worker-pdb
+
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: aiagentx-api
+      spec:
+        template:
+          spec:
+            containers:
+              - name: api
+                resources:
+                  requests:
+                    cpu: "1000m"
+                    memory: "1Gi"
+                  limits:
+                    cpu: "4000m"
+                    memory: "4Gi"
+    target:
+      kind: Deployment
+      name: aiagentx-api
+
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: aiagentx-worker
+      spec:
+        template:
+          spec:
+            containers:
+              - name: worker
+                resources:
+                  requests:
+                    cpu: "2000m"
+                    memory: "2Gi"
+                  limits:
+                    cpu: "8000m"
+                    memory: "8Gi"
+    target:
+      kind: Deployment
+      name: aiagentx-worker

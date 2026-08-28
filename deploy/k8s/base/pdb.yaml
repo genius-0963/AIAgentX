@@ -1,0 +1,31 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: aiagentx-api-pdb
+  namespace: aiagentx
+  labels:
+    app.kubernetes.io/name: aiagentx
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: aiagentx-platform
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aiagentx
+      app.kubernetes.io/component: api
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: aiagentx-worker-pdb
+  namespace: aiagentx
+  labels:
+    app.kubernetes.io/name: aiagentx
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: aiagentx-platform
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aiagentx
+      app.kubernetes.io/component: worker

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aiagentx
+  labels:
+    app.kubernetes.io/name: aiagentx
+    app.kubernetes.io/part-of: aiagentx-platform

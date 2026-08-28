@@ -1,0 +1,174 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: aiagentx-db-backup
+  namespace: aiagentx
+  labels:
+    app.kubernetes.io/name: aiagentx
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: aiagentx-platform
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: aiagentx
+            app.kubernetes.io/component: backup
+        annotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/port: "9090"
+        spec:
+          serviceAccountName: aiagentx-backup
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+          containers:
+            - name: backup
+              image: aiagentx/backup:0.1.0
+              imagePullPolicy: IfNotPresent
+              command:
+                - /scripts/backup.sh
+              env:
+                - name: BACKUP_DIR
+                  value: "/backups"
+                - name: POSTGRES_HOST
+                  valueFrom:
+                    configMapKeyRef:
+                      name: aiagentx-config
+                      key: POSTGRES_HOST
+                - name: POSTGRES_PORT
+                  valueFrom:
+                    configMapKeyRef:
+                      name: aiagentx-config
+                      key: POSTGRES_PORT
+                - name: POSTGRES_DB
+                  valueFrom:
+                    configMapKeyRef:
+                      name: aiagentx-config
+                      key: POSTGRES_DB
+                - name: POSTGRES_USER
+                  valueFrom:
+                    configMapKeyRef:
+                      name: aiagentx-config
+                      key: POSTGRES_USER
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: aiagentx-secrets
+                      key: postgres-password
+                - name: BACKUP_ENCRYPTION_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: aiagentx-secrets
+                      key: backup-encryption-key
+                      optional: true
+                - name: RETENTION_DAYS
+                  valueFrom:
+                    configMapKeyRef:
+                      name: aiagentx-config
+                      key: BACKUP_RETENTION_DAYS
+                      optional: true
+                - name: BACKUP_S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: aiagentx-secrets
+                      key: backup-s3-bucket
+                      optional: true
+                - name: BACKUP_S3_PREFIX
+                  valueFrom:
+                    configMapKeyRef:
+                      name: aiagentx-config
+                      key: BACKUP_S3_PREFIX
+                      optional: true
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: aiagentx-secrets
+                      key: aws-access-key-id
+                      optional: true
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: aiagentx-secrets
+                      key: aws-secret-access-key
+                      optional: true
+                - name: AWS_DEFAULT_REGION
+                  valueFrom:
+                    configMapKeyRef:
+                      name: aiagentx-config
+                      key: AWS_DEFAULT_REGION
+                      optional: true
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "128Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "512Mi"
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: aiagentx-backup-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: aiagentx-backup-pvc
+  namespace: aiagentx
+  labels:
+    app.kubernetes.io/name: aiagentx
+    app.kubernetes.io/component: backup
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aiagentx-backup
+  namespace: aiagentx
+  labels:
+    app.kubernetes.io/name: aiagentx
+    app.kubernetes.io/component: backup
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aiagentx-backup-role
+  namespace: aiagentx
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "configmaps", "secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aiagentx-backup-rolebinding
+  namespace: aiagentx
+subjects:
+  - kind: ServiceAccount
+    name: aiagentx-backup
+    namespace: aiagentx
+roleRef:
+  kind: Role
+  name: aiagentx-backup-role
+  apiGroup: rbac.authorization.k8s.io

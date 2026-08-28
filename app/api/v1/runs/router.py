@@ -18,7 +18,7 @@ from app.infrastructure.auth.middleware import (
     require_scopes,
 )
 from app.infrastructure.db.repositories.run import SQLRunRepository
-from app.infrastructure.db.session import get_session
+from app.infrastructure.db.session import get_db_session as get_session
 
 # Main runs router for individual run operations
 router = APIRouter(prefix="/runs", tags=["runs"])

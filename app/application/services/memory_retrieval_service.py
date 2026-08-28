@@ -95,6 +95,9 @@ class MemoryRetrievalService:
             session_id=session_id,
         )
 
+        # Ensure we don't exceed the limit (defense in depth)
+        results = results[:limit]
+
         # Filter by similarity threshold
         filtered_results = [(record, score) for record, score in results if score >= similarity_threshold]
 

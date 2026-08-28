@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.domain.entities.agent import AgentStatus
 
@@ -150,8 +150,7 @@ class ToolGrantResponse(BaseModel):
     policy: dict[str, Any] = Field(..., description="Access policy")
     created_at: str = Field(..., description="Creation timestamp (ISO 8601)")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AgentVersionResponse(BaseModel):
@@ -170,8 +169,7 @@ class AgentVersionResponse(BaseModel):
     created_at: str = Field(..., description="Creation timestamp (ISO 8601)")
     updated_at: str = Field(..., description="Last update timestamp (ISO 8601)")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AgentResponse(BaseModel):
@@ -188,5 +186,4 @@ class AgentResponse(BaseModel):
     created_at: str = Field(..., description="Creation timestamp (ISO 8601)")
     updated_at: str = Field(..., description="Last update timestamp (ISO 8601)")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

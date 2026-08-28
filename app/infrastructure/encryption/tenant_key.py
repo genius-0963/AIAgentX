@@ -25,6 +25,7 @@ class TenantKeyManager:
         """
         self._master_secret = master_secret.encode()
         self._key_cache: dict[UUID, bytes] = {}
+        self._key_versions: dict[UUID, int] = {}
 
     def derive_key(self, tenant_id: UUID) -> bytes:
         """Derive encryption key for a tenant.
@@ -43,12 +44,14 @@ class TenantKeyManager:
             return self._key_cache[tenant_id]
 
         try:
-            # Derive key using HKDF
+            version = self._key_versions.get(tenant_id, 0)
+            
+            # Derive key using HKDF with version
             hkdf = HKDF(
                 algorithm=hashes.SHA256(),
                 length=32,  # 256 bits for AES-256
                 salt=self._master_secret[:16],  # Use first 16 bytes as salt
-                info=tenant_id.bytes,
+                info=tenant_id.bytes + version.to_bytes(8, "big"),
             )
 
             key = hkdf.derive(self._master_secret)
@@ -56,7 +59,7 @@ class TenantKeyManager:
             # Cache the key
             self._key_cache[tenant_id] = key
 
-            logger.debug(f"Derived encryption key for tenant {tenant_id}")
+            logger.debug(f"Derived encryption key for tenant {tenant_id} (version {version})")
             return key
 
         except Exception as e:
@@ -72,11 +75,14 @@ class TenantKeyManager:
         Returns:
             New 32-byte encryption key
         """
-        # Remove from cache to force re-derivation
+        # Increment version to force new key derivation
+        self._key_versions[tenant_id] = self._key_versions.get(tenant_id, 0) + 1
+
+        # Remove from cache to force re-derivation with new version
         if tenant_id in self._key_cache:
             del self._key_cache[tenant_id]
 
-        # Derive new key
+        # Derive new key with incremented version
         return self.derive_key(tenant_id)
 
     def clear_cache(self, tenant_id: UUID | None = None) -> None:

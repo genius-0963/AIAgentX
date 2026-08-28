@@ -13,7 +13,6 @@ from app.domain.repositories.memory import (
     MemoryRepository,
     MemoryRetentionPolicyRepository,
 )
-from app.domain.events.memory_events import MemoryCleanedUpEvent
 
 if TYPE_CHECKING:
     from app.infrastructure.observability.logging import get_logger

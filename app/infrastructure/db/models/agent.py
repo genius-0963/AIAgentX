@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlalchemy as sa
 from sqlalchemy import Enum, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -73,7 +74,12 @@ class ToolGrantModel(Base, UUIDMixin, TimestampMixin):
     )
     tool_name: Mapped[str] = mapped_column(Text(), nullable=False)
     policy: Mapped[dict[str, object]] = mapped_column(JSONB(), nullable=False, default={})
+    is_active: Mapped[bool] = mapped_column(sa.Boolean(), nullable=False, default=True)
 
     agent_version: Mapped["AgentVersionModel"] = relationship(
         "AgentVersionModel", back_populates="tool_grants"
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint("agent_version_id", "tool_name", name="uq_tool_grant_version_tool"),
     )

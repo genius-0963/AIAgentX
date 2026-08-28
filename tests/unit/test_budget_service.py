@@ -9,7 +9,7 @@ from app.application.services.budget_service import BudgetCheckResult, BudgetSer
 from app.domain.entities.run import Run
 from app.domain.entities.tenant import Tenant
 from app.domain.value_objects.money import Money
-from app.domain.value_objects.state import RunState
+from app.domain.value_objects.state import RunState, RunStepKind
 
 
 @pytest.fixture
@@ -154,7 +154,7 @@ async def test_check_run_budget_step_limit(budget_service, sample_run, mock_run_
     """Test budget check when step limit is exceeded."""
     # Add steps to reach limit
     for i in range(100):
-        sample_run.add_step(i, "model_call", {"test": "data"})
+        sample_run.add_step(i, RunStepKind.MODEL_CALL, {"test": "data"})
 
     mock_run_repository.get.return_value = sample_run
 
@@ -230,7 +230,7 @@ async def test_record_spent_exceeds_budget(budget_service, sample_run, mock_run_
     """Test cost recording when it would exceed budget."""
     mock_run_repository.get.return_value = sample_run
 
-    with pytest.raises(ValueError, match="would exceed budget"):
+    with pytest.raises(ValueError, match="would exceed max cost"):
         await budget_service.record_spent(sample_run.id, Money(6_000_000))
 
 
@@ -299,7 +299,7 @@ async def test_check_timeout_true(budget_service, sample_run, mock_run_repositor
 @pytest.mark.asyncio
 async def test_check_timeout_false(budget_service, sample_run, mock_run_repository):
     """Test timeout check when no time remains."""
-    sample_run.created_at = datetime.now(UTC) - datetime.timedelta(seconds=100)
+    sample_run.created_at = datetime.now(UTC) - timedelta(seconds=100)
     mock_run_repository.get.return_value = sample_run
 
     result = await budget_service.check_timeout(sample_run.id)

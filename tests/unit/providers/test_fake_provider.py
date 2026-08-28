@@ -199,7 +199,10 @@ async def test_fake_provider_deterministic():
     response1 = await provider.complete(request)
     response2 = await provider.complete(request)
 
-    # Should return identical responses
+    # Should return identical responses (content and usage)
     assert response1.content == response2.content
     assert response1.usage == response2.usage
-    assert response1.latency_ms == response2.latency_ms
+    assert response1.model == response2.model
+    assert response1.finish_reason == response2.finish_reason
+    assert response1.provider == response2.provider
+    # Latency may vary and can be 0 for very fast operations

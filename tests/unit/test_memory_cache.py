@@ -109,10 +109,12 @@ class TestSessionMemoryCache:
     @pytest.mark.asyncio
     async def test_append_to_history(self, cache, mock_redis):
         mock_pipeline = AsyncMock()
-        mock_redis.pipeline.return_value.__aenter__.return_value = mock_pipeline
+        mock_redis.pipeline.return_value = mock_pipeline
+        mock_pipeline.__aenter__.return_value = mock_pipeline
 
         await cache.append_to_history("session-123", {"role": "user", "content": "Hello"})
 
+        mock_redis.pipeline.assert_called_once_with(transaction=True)
         mock_pipeline.rpush.assert_called_once()
         mock_pipeline.ltrim.assert_called_once()
         mock_pipeline.expire.assert_called_once()

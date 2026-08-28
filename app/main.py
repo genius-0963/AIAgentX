@@ -16,7 +16,7 @@ from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError as PydanticValidationError
 from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, AsyncSession
 
 from app.api.errors.exceptions import APIError, ConflictError, NotFoundError, ValidationError
 from app.api.errors.handlers import (
@@ -31,9 +31,9 @@ from app.api.middleware.middleware import (
     ErrorHandlerMiddleware,
     RequestIDMiddleware,
 )
-from app.api.v1.agents import router as agents_router
-from app.api.v1.approvals import router as approvals_router
-from app.api.v1.audit import router as audit_router
+from app.api.v1.agents import agents_router
+from app.api.v1.approvals.router import router as approvals_router
+from app.api.v1.audit.router import router as audit_router
 from app.api.v1.health import router as health_router
 from app.api.v1.runs import agent_runs_router
 from app.api.v1.runs import router as runs_router
@@ -52,6 +52,17 @@ from app.settings import Settings, get_settings
 logger = logging.getLogger(__name__)
 
 
+def create_session_factory(settings: Settings) -> async_sessionmaker[AsyncSession]:
+    """Create a session factory bound to the configured engine."""
+    engine = create_engine(settings)
+    return async_sessionmaker(
+        bind=engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Manage application lifecycle: create and dispose engine + client."""
@@ -60,6 +71,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if not hasattr(app.state, "db_engine") or app.state.db_engine is None:
         app.state.db_engine = create_engine(settings)
         logger.info("Database engine created")
+
+    if not hasattr(app.state, "db_session_factory") or app.state.db_session_factory is None:
+        app.state.db_session_factory = create_session_factory(settings)
+        logger.info("Database session factory created")
 
     if not hasattr(app.state, "redis_client") or app.state.redis_client is None:
         app.state.redis_client = create_redis_client(settings)
@@ -72,6 +87,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await app.state.db_engine.dispose()
         if isinstance(app.state.redis_client, Redis):
             await app.state.redis_client.aclose()  # type: ignore[attr-defined]
+
+
+async def get_db_session(
+    factory: async_sessionmaker[AsyncSession] = None,  # Will be overridden by dependency
+) -> Any:
+    """FastAPI dependency for database session using app state."""
+    # This will be overridden by the actual dependency in the routers
+    pass
 
 
 def create_app(
@@ -107,6 +130,7 @@ def create_app(
     app.state.settings = settings
     if db_engine is not None:
         app.state.db_engine = db_engine
+        app.state.db_session_factory = create_session_factory(settings)
     if redis_client is not None:
         app.state.redis_client = redis_client
 

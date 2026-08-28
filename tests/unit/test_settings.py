@@ -87,8 +87,8 @@ def test_settings_cors_origins_parsing() -> None:
     from app.settings import Settings
 
     settings = Settings(_env_file=None, cors_origins="http://localhost:3000,http://localhost:8000")
-    assert "http://localhost:3000" in settings.cors_origins
-    assert "http://localhost:8000" in settings.cors_origins
+    assert "http://localhost:3000" in settings.cors_origins_list
+    assert "http://localhost:8000" in settings.cors_origins_list
 
 
 def test_settings_database_pool_configuration() -> None:

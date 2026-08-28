@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from app.domain.entities.base import AggregateRoot
@@ -32,6 +33,11 @@ class Tenant(AggregateRoot):
     slug: str
     plan: TenantPlan = TenantPlan.FREE
     status: TenantStatus = TenantStatus.ACTIVE
+    daily_budget_usd: float = 100.0
+    monthly_budget_usd: float = 1000.0
+    spent_daily_usd: float = 0.0
+    spent_monthly_usd: float = 0.0
+    budget_reset_at: datetime | None = None
 
     def __post_init__(self) -> None:
         if not self.slug or not self.slug.strip():

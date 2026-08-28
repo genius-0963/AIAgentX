@@ -12,7 +12,7 @@ from app.api.v1.schemas.approvals import (
     ApprovalListResponse,
     ApprovalResponse,
 )
-from app.application.auth.dependencies import (
+from app.infrastructure.auth.middleware import (
     AuthContext,
     get_current_tenant,
     require_scopes,

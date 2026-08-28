@@ -6,8 +6,8 @@ import re
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, Header, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api.errors.exceptions import ValidationError
 from app.api.v1.schemas.runs import RunCreate, RunResponse, RunStatusResponse
@@ -18,7 +18,7 @@ from app.infrastructure.auth.middleware import (
     require_scopes,
 )
 from app.infrastructure.db.repositories.run import SQLRunRepository
-from app.infrastructure.db.session import get_db_session as get_session
+
 
 # Main runs router for individual run operations
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -27,8 +27,28 @@ router = APIRouter(prefix="/runs", tags=["runs"])
 agent_runs_router = APIRouter(tags=["agent runs"])
 
 
+def get_session_factory(request: Request) -> "async_sessionmaker[AsyncSession]":
+    """Get session factory from app state."""
+    return request.app.state.db_session_factory
+
+
+async def get_db_session(
+    request: Request,
+) -> Any:
+    """FastAPI dependency for database session."""
+    factory = get_session_factory(request)
+    async with factory() as session:
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
 async def get_run_use_cases(
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db_session),
 ) -> RunUseCases:
     """Dependency to get run use cases."""
     repository = SQLRunRepository(session)
